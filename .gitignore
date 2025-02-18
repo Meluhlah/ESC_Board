@@ -1,0 +1,79 @@
+# General VSCode settings and extensions
+.vscode/
+*.code-workspace
+
+# STM32CubeIDE project files (if used)
+*.launch
+*.settings/
+*.cproject
+*.project
+*.mxproject
+*.ioc
+Makefile
+makefile
+!.gitignore
+
+# STM32CubeMX-generated files
+Middlewares/
+Drivers/
+Core/
+
+# CMake build artifacts
+CMakeCache.txt
+CMakeFiles/
+CMakeLists.txt.user
+cmake_install.cmake
+build/
+out/
+
+# Compiled object files, binaries, and debug files
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+*.srec
+*.d
+*.lst
+*.out
+
+# Debugging files
+*.dmp
+*.su
+*.td
+*.bak
+*.swp
+*.swo
+*.svd
+*.gdb
+*.dep
+*.pyc
+*.pyo
+*.pdb
+*.ilk
+*.idb
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swo
+*.svd
+*.bak
+*.swp
+*.cache
+*.gz
+*.zip
+
+# Keil uVision project files (if using Keil)
+*.uvprojx
+*.uvoptx
+*.axf
+*.htm
+*.dep
+*.lst
+*.bak
+
+# System specific
+.DS_Store
+Thumbs.db
+desktop.ini
