@@ -8,24 +8,25 @@
 class Phase
 {
 public:
-    Phase(TIM_HandleTypeDef* high_mos_tim, uint16_t high_mos_tim_ch, volatile uint32_t* ccrx, GPIO_TypeDef* low_mos_port, uint16_t low_mos_pin);
+    Phase(TIM_HandleTypeDef* timer, uint16_t timer_ch, volatile uint32_t* ccrx, GPIO_TypeDef* low_mos_port, uint16_t low_pin);
     ~Phase();
 
     void set_pwm(uint32_t duty_cycle);
-    void phase_off();
-    void phase_on();
+    void off();
+    void high_on();
+    void low_on();
+    uint32_t get_duty_cycle();
+
 
 private:
     // TODO: Change pointer names to pXXXXX
-    
-    TIM_HandleTypeDef*  high_mos_tim;
-    uint16_t            high_mos_tim_ch;
+
+    TIM_HandleTypeDef   *timer;
+    const uint16_t      channel;
     volatile uint32_t*  ccrx;
     
-    GPIO_TypeDef*       low_mos_port;
-    uint16_t            low_mos_pin;
-
-    uint8_t             pwm_duty_cycle;
+    GPIO_TypeDef*       low_port;
+    const uint16_t      low_pin;
 };
 
 #endif

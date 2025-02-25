@@ -8,15 +8,15 @@
 *.cproject
 *.project
 *.mxproject
-*.ioc
+# *.ioc
 Makefile
 makefile
 !.gitignore
 
 # STM32CubeMX-generated files
 Middlewares/
-Drivers/
-Core/
+# Drivers/
+# Core/
 
 # CMake build artifacts
 CMakeCache.txt

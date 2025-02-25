@@ -50,6 +50,8 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user sources here
     Cpp/Src/maincpp.cpp
     Cpp/Phase/Phase.cpp
+    Cpp/Debug/Debug.cpp
+    Cpp/Src/ws2812b.c
 )
 
 # Add include paths
@@ -57,6 +59,7 @@ target_include_directories(${CMAKE_PROJECT_NAME} PRIVATE
     # Add user defined include paths
     Cpp/Inc
     Cpp/Phase
+    Cpp/Debug
 )
 
 # Add project symbols (macros)

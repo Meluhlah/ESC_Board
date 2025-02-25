@@ -1,0 +1,12 @@
+    /*
+        STEP:   0   1   2   3   4   5 | 0   1
+                                      |
+        HIGH:   A   B   B   C   C   A | A   B
+                                      |
+        OFF:    B   A   C   B   A   C | B   A
+                                      |
+        LOW:    C   C   A   A   B   B | C   C
+                                      |
+        BEMF:   ↑   ↓   ↑   ↓   ↑   ↓ | ↑   ↓
+                B   A   C   B   A   C | B   A
+    */

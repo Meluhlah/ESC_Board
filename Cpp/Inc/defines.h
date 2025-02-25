@@ -1,0 +1,24 @@
+#ifndef _DEFINES_H
+#define _DEFINES_H
+
+
+
+typedef enum {
+
+    MOTOR_STATE_IDLE,
+    MOTOR_STATE_RAMP,
+    MOTOR_STATE_AUTO_COMMUTATION, 
+
+} MOTOR_STATE_e;
+
+typedef enum{
+
+    ERROR_OVERCURRENT,
+    ERROR_MOTOR_LOCKED,
+    ERROR_OVER_TEMPERATURE,
+    ERROR_LOW_BATTERY
+
+} ERROR_e;
+
+
+#endif // _DEFINES_H
