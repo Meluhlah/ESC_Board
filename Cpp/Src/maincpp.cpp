@@ -1,10 +1,31 @@
 #include "maincpp.h"
 
+
+// ******************** Global Variables ******************** //
+
 volatile uint8_t commutation_step;
+volatile ERROR_e error;
+volatile MOTOR_STATE_e motorState;
+LED ws2812b_led[NUM_OF_LEDS];
+
+// ********************************************************** //
 
 void setup()
 {
     commutation_step = 0;
+    phaseA.set_pwm(0);
+    phaseA.off();
+    phaseB.set_pwm(0);
+    phaseB.off();
+    phaseC.set_pwm(0);
+    phaseC.off();
+    error = NO_ERROR;
+    motorState = MOTOR_STATE_IDLE;
+    ws2812b_init(ws2812b_led);
+
+#ifdef DEBUGGING
+    DEBUG << "Init Function Done.\n";
+#endif
 
 }
 
@@ -41,42 +62,42 @@ void commutate()
             phaseB.off();    
             phaseA.high_on();
             phaseC.low_on();
-            EXTI->RTSR1 |= BEMF_2_Pin;  // Enabling Interrupt
+            EXTI->RTSR1 |= BEMF_2_Pin;  // Enabling Rising Interrupt on B
         break;
 
         case 1:
             phaseA.off();    
             phaseB.high_on();
             phaseC.low_on();
-            EXTI->FTSR1 |= BEMF_1_Pin;
+            EXTI->FTSR1 |= BEMF_1_Pin; // Enabling Falling Interrupt on A
         break;
         
         case 2:
             phaseC.off();    
             phaseB.high_on();
             phaseA.low_on();
-            EXTI->RTSR1 |= BEMF_3_Pin;
+            EXTI->RTSR1 |= BEMF_3_Pin; // Enabling Rising Interrupt on C
         break;
         
         case 3:
             phaseB.off();    
             phaseC.high_on();
             phaseA.low_on();
-            EXTI->FTSR1 |= BEMF_2_Pin;
+            EXTI->FTSR1 |= BEMF_2_Pin; // Enabling Falling Interrupt on B
         break;
         
         case 4:
             phaseA.off();    
             phaseC.high_on();
             phaseB.low_on();
-            EXTI->RTSR1 |= BEMF_1_Pin;
+            EXTI->RTSR1 |= BEMF_1_Pin; // Enabling Rising Interrupt on A
         break;
         
         case 5:
             phaseC.off();    
             phaseA.high_on();
             phaseB.low_on();
-            EXTI->FTSR1 |= BEMF_3_Pin;
+            EXTI->FTSR1 |= BEMF_3_Pin; // Enabling Falling Interrupt on C
         break;
         
         default:
@@ -166,17 +187,7 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 
 void maincpp(){
 
-
-    htim1.Instance->CCR1 = 10;
-    phaseA.set_pwm(20);
     while(1){
-
-        HAL_Delay(500);
-        DEBUGGER << "Phase A CRR1:\t" << phaseA.get_duty_cycle() << "\n";
-        DEBUGGER << "CCR1:\t" << htim1.Instance->CCR1 << "\n";
-        
-        DEBUGGER << "-----------------\n";
-
-        
+       
     }
 }

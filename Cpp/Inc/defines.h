@@ -13,6 +13,7 @@ typedef enum {
 
 typedef enum{
 
+    NO_ERROR,
     ERROR_OVERCURRENT,
     ERROR_MOTOR_LOCKED,
     ERROR_OVER_TEMPERATURE,

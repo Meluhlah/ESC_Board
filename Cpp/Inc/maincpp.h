@@ -5,6 +5,7 @@
 #include "Phase.h"
 #include "Debug.h"
 #include "defines.h"
+#include "ws2812b.h"
 
 
 void setup();

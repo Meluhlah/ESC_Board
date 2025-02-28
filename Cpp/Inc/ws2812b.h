@@ -94,28 +94,32 @@
 #endif
 
 typedef enum LED_STATUS{
+	
 	LED_OFF = (int8_t)0,
 	LED_ON  = (int8_t)1,
+
 }LED_STATUS;
 
-struct LED{
-	uint8_t red;
-	uint8_t green;
-	uint8_t blue;
-	LED_STATUS status;
-};
+typedef struct{
+	uint8_t 	red;
+	uint8_t 	green;
+	uint8_t 	blue;
+	LED_STATUS 	status;
 
-extern uint8_t pwmflag;
-extern uint8_t pwmData[DATA_LENGTH];
-extern struct LED led[NUM_OF_LEDS];
+} LED;
 
-void led_init();
-void led_initPattern();
-void led_clearAll();
-void led_setColor(uint8_t red, uint8_t green, uint8_t blue, uint8_t index);	// Setting each LED color.
-void led_sendData();
-void led_setStrip_color(uint8_t red, uint8_t green, uint8_t blue);
-void led_blink(uint8_t r, uint8_t g, uint8_t b);
+extern uint8_t 	ws2812b_pwmFlag;
+extern uint8_t 	ws2812b_pwmData[DATA_LENGTH];
+
+
+
+void ws2812b_init(LED* led);
+void ws2812b_initPattern(LED* led);
+void ws2812b_clearAll(LED* led);
+void ws2812b_setColor(LED* led, uint8_t red, uint8_t green, uint8_t blue, uint8_t index);	// Setting each LED color.
+void ws2812b_sendData(LED* led);
+void ws2812b_setStripColor(LED* led, uint8_t red, uint8_t green, uint8_t blue);
+void ws2812b_blink(LED* led, uint8_t r, uint8_t g, uint8_t b);
 
 
 #endif /* INC_ADDRESSABLE_LEDS_H_ */
