@@ -27,6 +27,7 @@
 TIM_HandleTypeDef htim1;
 TIM_HandleTypeDef htim16;
 TIM_HandleTypeDef htim17;
+DMA_HandleTypeDef hdma_tim16_ch1;
 
 /* TIM1 init function */
 void MX_TIM1_Init(void)
@@ -118,9 +119,9 @@ void MX_TIM16_Init(void)
 
   /* USER CODE END TIM16_Init 1 */
   htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 0;
+  htim16.Init.Prescaler = 1-1;
   htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 65535;
+  htim16.Init.Period = 83-1;
   htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim16.Init.RepetitionCounter = 0;
   htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
@@ -230,6 +231,25 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* tim_baseHandle)
   /* USER CODE END TIM16_MspInit 0 */
     /* TIM16 clock enable */
     __HAL_RCC_TIM16_CLK_ENABLE();
+
+    /* TIM16 DMA Init */
+    /* TIM16_CH1 Init */
+    hdma_tim16_ch1.Instance = DMA1_Channel1;
+    hdma_tim16_ch1.Init.Request = DMA_REQUEST_TIM16_CH1;
+    hdma_tim16_ch1.Init.Direction = DMA_MEMORY_TO_PERIPH;
+    hdma_tim16_ch1.Init.PeriphInc = DMA_PINC_DISABLE;
+    hdma_tim16_ch1.Init.MemInc = DMA_MINC_ENABLE;
+    hdma_tim16_ch1.Init.PeriphDataAlignment = DMA_PDATAALIGN_WORD;
+    hdma_tim16_ch1.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
+    hdma_tim16_ch1.Init.Mode = DMA_NORMAL;
+    hdma_tim16_ch1.Init.Priority = DMA_PRIORITY_LOW;
+    if (HAL_DMA_Init(&hdma_tim16_ch1) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    __HAL_LINKDMA(tim_baseHandle,hdma[TIM_DMA_ID_CC1],hdma_tim16_ch1);
+
   /* USER CODE BEGIN TIM16_MspInit 1 */
 
   /* USER CODE END TIM16_MspInit 1 */
@@ -345,6 +365,9 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* tim_baseHandle)
   /* USER CODE END TIM16_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_TIM16_CLK_DISABLE();
+
+    /* TIM16 DMA DeInit */
+    HAL_DMA_DeInit(tim_baseHandle->hdma[TIM_DMA_ID_CC1]);
   /* USER CODE BEGIN TIM16_MspDeInit 1 */
 
   /* USER CODE END TIM16_MspDeInit 1 */

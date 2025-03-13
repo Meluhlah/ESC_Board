@@ -6,22 +6,26 @@
 volatile uint8_t commutation_step;
 volatile ERROR_e error;
 volatile MOTOR_STATE_e motorState;
-LED ws2812b_led[NUM_OF_LEDS];
+led_t ws2812b_led[NUM_OF_LEDS];
 
 // ********************************************************** //
 
 void setup()
 {
-    commutation_step = 0;
+
+    ws2812b_init(ws2812b_led);
+    HAL_Delay(2);
+    ws2812b_setColor(ws2812b_led, 0, 50, 0, 0);
     phaseA.set_pwm(0);
     phaseA.off();
     phaseB.set_pwm(0);
     phaseB.off();
     phaseC.set_pwm(0);
     phaseC.off();
+    commutation_step = 0;
     error = NO_ERROR;
     motorState = MOTOR_STATE_IDLE;
-    ws2812b_init(ws2812b_led);
+
 
 #ifdef DEBUGGING
     DEBUG << "Init Function Done.\n";
@@ -185,7 +189,16 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 }
 
 
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
+	if(htim == &TIM_HANDLE){
+		HAL_TIM_PWM_Stop_DMA(&TIM_HANDLE, TIM_CHANNEL);
+	}
+}
+
 void maincpp(){
+
+    setup();
+
 
     while(1){
        
