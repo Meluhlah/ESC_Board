@@ -100,6 +100,7 @@ int main(void)
   MX_TIM16_Init();
   MX_TIM17_Init();
   MX_USART1_UART_Init();
+  MX_TIM14_Init();
   /* USER CODE BEGIN 2 */
   maincpp();
   /* USER CODE END 2 */

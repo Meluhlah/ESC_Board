@@ -59,10 +59,13 @@ void maincpp();
 /* Private defines -----------------------------------------------------------*/
 #define BEMF_1_Pin GPIO_PIN_13
 #define BEMF_1_GPIO_Port GPIOC
+#define BEMF_1_EXTI_IRQn EXTI4_15_IRQn
 #define BEMF_2_Pin GPIO_PIN_14
 #define BEMF_2_GPIO_Port GPIOC
+#define BEMF_2_EXTI_IRQn EXTI4_15_IRQn
 #define BEMF_3_Pin GPIO_PIN_15
 #define BEMF_3_GPIO_Port GPIOC
+#define BEMF_3_EXTI_IRQn EXTI4_15_IRQn
 #define PHASE_V1_Pin GPIO_PIN_0
 #define PHASE_V1_GPIO_Port GPIOA
 #define PHASE_I1_Pin GPIO_PIN_1

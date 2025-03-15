@@ -6,16 +6,30 @@
 volatile uint8_t commutation_step;
 volatile ERROR_e error;
 volatile MOTOR_STATE_e motorState;
+uint8_t zcDetEnable = 0;
+volatile uint8_t zc_counter = 0;
+volatile uint32_t imrDefaultFlags = 0;
 led_t ws2812b_led[NUM_OF_LEDS];
 
+Phase phaseA(&htim1, TIM_CHANNEL_1, &TIM1->CCR1, PHASE1_LOW_GPIO_Port, PHASE1_LOW_Pin);
+Phase phaseB(&htim1, TIM_CHANNEL_2, &TIM1->CCR2, PHASE2_LOW_GPIO_Port, PHASE2_LOW_Pin);
+Phase phaseC(&htim1, TIM_CHANNEL_3, &TIM1->CCR3, PHASE3_LOW_GPIO_Port, PHASE3_LOW_Pin);
+
 // ********************************************************** //
+
+void delayMicro(uint16_t delay){
+	__HAL_TIM_SET_COUNTER(&DELAY_TIMER, 0);
+	while(__HAL_TIM_GET_COUNTER(&DELAY_TIMER) < delay);
+}
 
 void setup()
 {
 
     ws2812b_init(ws2812b_led);
-    HAL_Delay(2);
-    ws2812b_setColor(ws2812b_led, 0, 50, 0, 0);
+    // HAL_Delay(2);
+    // ws2812b_setColor(ws2812b_led, 0, 0, 255, 0);
+    EXTI->IMR1 &= ~(BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
+    imrDefaultFlags = EXTI->IMR1;
     phaseA.set_pwm(0);
     phaseA.off();
     phaseB.set_pwm(0);
@@ -25,6 +39,7 @@ void setup()
     commutation_step = 0;
     error = NO_ERROR;
     motorState = MOTOR_STATE_IDLE;
+    HAL_TIM_Base_Start(&htim14);
 
 
 #ifdef DEBUGGING
@@ -36,16 +51,20 @@ void setup()
 
 void commutate()
 {
+
     // Disabling Interrupts on BEMF inputs
     EXTI->RTSR1 &= ~(BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
     EXTI->FTSR1 &= ~(BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
 
     // Clearing Pending Interrupt Requests
-    EXTI->RPR1 &= (BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
-    EXTI->FPR1 &= (BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
+    EXTI->RPR1 |= (BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
+    EXTI->FPR1 |= (BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
 
     commutation_step++;
     commutation_step %= 6;
+
+    // delayMicro(2);
+
 
     /*
         STEP:   0   1   2   3   4   5 | 0   1
@@ -63,45 +82,63 @@ void commutate()
     switch(commutation_step)
     {
         case 0:
+            if(1 == zcDetEnable){
+                EXTI->IMR1  = (imrDefaultFlags | BEMF_2_Pin);
+                EXTI->RTSR1 |= BEMF_2_Pin;  // Enabling Rising Interrupt on B
+            }
             phaseB.off();    
             phaseA.high_on();
             phaseC.low_on();
-            EXTI->RTSR1 |= BEMF_2_Pin;  // Enabling Rising Interrupt on B
         break;
 
         case 1:
+            if(1 == zcDetEnable){
+                EXTI->IMR1  = (imrDefaultFlags | BEMF_1_Pin);
+                EXTI->FTSR1 |= BEMF_1_Pin; // Enabling Falling Interrupt on A
+            }
             phaseA.off();    
             phaseB.high_on();
             phaseC.low_on();
-            EXTI->FTSR1 |= BEMF_1_Pin; // Enabling Falling Interrupt on A
         break;
         
         case 2:
+            if(1 == zcDetEnable){
+                EXTI->IMR1  = (imrDefaultFlags | BEMF_3_Pin);
+                EXTI->RTSR1 |= BEMF_3_Pin; // Enabling Rising Interrupt on C
+            }
             phaseC.off();    
             phaseB.high_on();
             phaseA.low_on();
-            EXTI->RTSR1 |= BEMF_3_Pin; // Enabling Rising Interrupt on C
         break;
         
         case 3:
+            if(1 == zcDetEnable){
+                EXTI->IMR1  = (imrDefaultFlags | BEMF_2_Pin);
+                EXTI->FTSR1 |= BEMF_2_Pin; // Enabling Falling Interrupt on B
+            }
             phaseB.off();    
             phaseC.high_on();
             phaseA.low_on();
-            EXTI->FTSR1 |= BEMF_2_Pin; // Enabling Falling Interrupt on B
         break;
         
         case 4:
+            if(1 == zcDetEnable){
+                EXTI->IMR1  = (imrDefaultFlags | BEMF_1_Pin);
+                EXTI->RTSR1 |= BEMF_1_Pin; // Enabling Rising Interrupt on A
+            }
             phaseA.off();    
             phaseC.high_on();
             phaseB.low_on();
-            EXTI->RTSR1 |= BEMF_1_Pin; // Enabling Rising Interrupt on A
         break;
         
         case 5:
+            if(1 == zcDetEnable){
+                EXTI->IMR1  = (imrDefaultFlags | BEMF_3_Pin);
+                EXTI->FTSR1 |= BEMF_3_Pin; // Enabling Falling Interrupt on C
+            }
             phaseC.off();    
             phaseA.high_on();
             phaseB.low_on();
-            EXTI->FTSR1 |= BEMF_3_Pin; // Enabling Falling Interrupt on C
         break;
         
         default:
@@ -110,8 +147,11 @@ void commutate()
         /*
         TODO: Add delay for ringing
         */
+    
 
     }
+
+    
 }
 
 // Used to filter False readings on interrupt pin
@@ -156,6 +196,8 @@ uint8_t getBemfStateFalling(){
 }
 
 
+
+
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin){
 
     if(GPIO_Pin == BEMF_1_Pin || GPIO_Pin == BEMF_2_Pin || GPIO_Pin == BEMF_3_Pin){
@@ -167,7 +209,14 @@ void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin){
             return;
         }
     */
-        commutate();     
+        
+        if(zcDetEnable){
+            zc_counter++;
+        }
+        
+        if(motorState == MOTOR_STATE_AUTO_COMMUTATION){       
+            commutate();     
+        }
     }
     
 }
@@ -184,21 +233,94 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
                 return;
             }
         */
+        
+        if(zcDetEnable){
+            zc_counter++;
+        }
+        
+        if(motorState == MOTOR_STATE_AUTO_COMMUTATION){       
             commutate();     
         }
+    }
 }
 
 
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
-	if(htim == &TIM_HANDLE){
+
+    // WS2812B LED
+    if(htim == &TIM_HANDLE){
 		HAL_TIM_PWM_Stop_DMA(&TIM_HANDLE, TIM_CHANNEL);
 	}
+
+    
+}
+
+
+void motorAlign(Phase phaseA, Phase phaseB, Phase phaseC){
+
+    motorState = MOTOR_STATE_ALIGN;
+    phaseA.set_pwm(ALIGN_PWM_INIT);
+    phaseB.low_on();
+    phaseC.low_on();
+    phaseA.high_on();
+    
+    for(int i = 0; i < ALIGN_STEPS_NUM; i++){
+        uint32_t newDutyCycle = phaseA.get_duty_cycle() + ALIGN_PWM_INCREMENT_PER_STEP;
+        if(newDutyCycle <= ALIGN_PWM_TARGET){
+            phaseA.set_pwm(newDutyCycle);
+        }        
+        HAL_Delay(ALIGN_STEP_DURATION_MS);
+    }
+
+    ws2812b_setColor(ws2812b_led, 0, 255, 0, 0);
+    commutation_step = 0;
+    phaseA.off();
+    phaseB.off();
+    phaseC.off();
+}
+
+
+void motorRamp(Phase phaseA, Phase phaseB, Phase phaseC){
+
+    motorState = MOTOR_STATE_RAMP;
+    phaseB.set_pwm(phaseA.get_duty_cycle());
+    phaseC.set_pwm(phaseA.get_duty_cycle());
+    zcDetEnable = 0;
+    uint16_t stepDelayUs = RAMP_STEP_INIT_DURATION_US;
+
+    for(int i = 0; i < RAMP_STEPS_NUM; i++){
+
+        if(zc_counter >= RAMP_ZC_DETECTION_THRESHOLD){
+
+            motorState = MOTOR_STATE_AUTO_COMMUTATION;
+            break;
+
+        }
+
+        if(i == RAMP_ZC_DET_ENABLE_STEP){
+
+            // zcDetEnable = 1;
+
+        }
+        commutate();
+
+        if(stepDelayUs - RAMP_STEP_DECREMENT_PER_STEP_US >= RAMP_STEP_TARGET_DURATION_US){
+           stepDelayUs -= RAMP_STEP_DECREMENT_PER_STEP_US;
+        }
+        delayMicro(stepDelayUs);
+    }
+    phaseA.off();
+    phaseB.off();
+    phaseC.off();
+    ws2812b_setColor(ws2812b_led, 255, 0, 0, 0);
+
 }
 
 void maincpp(){
 
     setup();
-
+    // motorAlign(phaseA, phaseB, phaseC);
+    // motorRamp(phaseA, phaseB, phaseC);
 
     while(1){
        

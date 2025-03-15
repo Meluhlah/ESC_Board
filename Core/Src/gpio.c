@@ -52,6 +52,9 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, PHASE1_LOW_Pin|PHASE2_LOW_Pin|PHASE3_LOW_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, SPARE3_Pin|SPARE4_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -59,9 +62,16 @@ void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : BEMF_1_Pin BEMF_2_Pin BEMF_3_Pin */
   GPIO_InitStruct.Pin = BEMF_1_Pin|BEMF_2_Pin|BEMF_3_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PHASE1_LOW_Pin PHASE2_LOW_Pin PHASE3_LOW_Pin */
+  GPIO_InitStruct.Pin = PHASE1_LOW_Pin|PHASE2_LOW_Pin|PHASE3_LOW_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pins : SPARE3_Pin SPARE4_Pin */
   GPIO_InitStruct.Pin = SPARE3_Pin|SPARE4_Pin;
@@ -82,6 +92,10 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_PULLDOWN;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 
 }
 

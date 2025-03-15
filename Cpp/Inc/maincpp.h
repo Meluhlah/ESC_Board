@@ -7,7 +7,6 @@
 #include "defines.h"
 #include "ws2812b.h"
 
-
 void setup();
 void commutate();
 uint8_t getBemfStateFalling();
@@ -24,10 +23,5 @@ extern ADC_HandleTypeDef hadc1;
 }
 
 Debug DEBUGGER;
-
-Phase phaseA(&htim1, TIM_CHANNEL_1, &htim1.Instance->CCR1, PHASE1_LOW_GPIO_Port, PHASE1_LOW_Pin);
-Phase phaseB(&htim1, TIM_CHANNEL_2, &htim1.Instance->CCR2, PHASE2_LOW_GPIO_Port, PHASE2_LOW_Pin);
-Phase phaseC(&htim1, TIM_CHANNEL_3, &htim1.Instance->CCR3, PHASE3_LOW_GPIO_Port, PHASE3_LOW_Pin);
-
 
 #endif // _MAINCPP_H_
