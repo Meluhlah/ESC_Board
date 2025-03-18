@@ -7,16 +7,35 @@
 #include <cstring>
 #include "stdio.h"
 
+// Choose uart operation mode
+// #define BLOCKING_MODE
+#define NON_BLOCKING_MODE
+
 class Debug
 {
+private:
+    UART_HandleTypeDef* uartHandler;
+    uint8_t txFlag;
+
 public:
-    Debug();
+    Debug(UART_HandleTypeDef* uartHandler);
     ~Debug();
+
+    void setTxFlag();
 
     // Overload for string literals
     Debug& operator<<(const char* msg)
     {
-        HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+
+        #ifdef BLOCKING_MODE
+        HAL_UART_Transmit(&UART_HANDLER, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+        #elif defined(NON_BLOCKING_MODE)
+        txFlag = 0;
+        HAL_UART_Transmit_DMA(uartHandler, (uint8_t*)msg, strlen(msg));
+        #else
+            #error "Please define either BLOCKING_MODE or NON_BLOCKING_MODE"
+        #endif
+
         return *this;
     }
 

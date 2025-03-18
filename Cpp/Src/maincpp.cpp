@@ -3,17 +3,29 @@
 
 // ******************** Global Variables ******************** //
 
-volatile uint8_t commutation_step;
-volatile ERROR_e error;
-volatile MOTOR_STATE_e motorState;
-uint8_t zcDetEnable = 0;
-volatile uint8_t zc_counter = 0;
-volatile uint32_t imrDefaultFlags = 0;
-led_t ws2812b_led[NUM_OF_LEDS];
+// Commutation Params *************************************** //
 
 Phase phaseA(&htim1, TIM_CHANNEL_1, &TIM1->CCR1, PHASE1_LOW_GPIO_Port, PHASE1_LOW_Pin);
 Phase phaseB(&htim1, TIM_CHANNEL_2, &TIM1->CCR2, PHASE2_LOW_GPIO_Port, PHASE2_LOW_Pin);
 Phase phaseC(&htim1, TIM_CHANNEL_3, &TIM1->CCR3, PHASE3_LOW_GPIO_Port, PHASE3_LOW_Pin);
+
+volatile uint8_t commutation_step;
+volatile uint8_t zc_counter = 0;
+volatile uint32_t imrDefaultFlags = 0;
+uint8_t zcDetEnable = 0;
+
+// Status Params ******************************************** //
+volatile MOTOR_STATE_e motorState;
+volatile ERROR_e error;
+
+// Delay Params ********************************************* //
+volatile uint8_t tim14DelayFlag = 0;
+
+// WS2812B LED Params *************************************** //
+led_t ws2812b_led[NUM_OF_LEDS];
+
+// Debugger ************************************************* //
+Debug DEBUGGER(&huart1);
 
 // ********************************************************** //
 
@@ -26,8 +38,13 @@ void setup()
 {
 
     ws2812b_init(ws2812b_led);
-    // HAL_Delay(2);
-    // ws2812b_setColor(ws2812b_led, 0, 0, 255, 0);
+    
+    #ifdef DEBUGGING
+    HAL_Delay(2);
+    ws2812b_setColor(ws2812b_led, 0, 0, 255, 0);
+    DEBUGGER << "Setup Function Called.\n";
+    #endif
+
     EXTI->IMR1 &= ~(BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
     imrDefaultFlags = EXTI->IMR1;
     phaseA.set_pwm(0);
@@ -41,16 +58,14 @@ void setup()
     motorState = MOTOR_STATE_IDLE;
     HAL_TIM_Base_Start(&htim14);
 
-
-#ifdef DEBUGGING
-    DEBUG << "Init Function Done.\n";
-#endif
-
 }
 
 
 void commutate()
 {
+
+    EXTI->IMR1 = imrDefaultFlags;
+    EXTI->IMR1 &= ~(BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
 
     // Disabling Interrupts on BEMF inputs
     EXTI->RTSR1 &= ~(BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
@@ -63,7 +78,7 @@ void commutate()
     commutation_step++;
     commutation_step %= 6;
 
-    // delayMicro(2);
+    delayMicro(2);
 
 
     /*
@@ -195,27 +210,36 @@ uint8_t getBemfStateFalling(){
 
 }
 
+void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 
+    if(huart->Instance == USART1){
 
+        DEBUGGER.setTxFlag();
+
+    }
+
+}
 
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin){
 
     if(GPIO_Pin == BEMF_1_Pin || GPIO_Pin == BEMF_2_Pin || GPIO_Pin == BEMF_3_Pin){
 
-    /*
-        TODO: Check the Pin's state, to filter out noise.
-        
-        if(getBemfStateRising() == 0){
-            return;
-        }
-    */
-        
+        #ifdef DEBUGGING
+        HAL_GPIO_TogglePin(SPARE3_GPIO_Port, SPARE3_Pin);
+        #endif
+
         if(zcDetEnable){
             zc_counter++;
         }
         
-        if(motorState == MOTOR_STATE_AUTO_COMMUTATION){       
+        if(motorState == MOTOR_STATE_AUTO_COMMUTATION){  
+            
+            delayMicro(TEST_ZC_MEASUREMENT_DELAY);
+            if(getBemfStateRising() == 0){
+                return;
+            }         
             commutate();     
+
         }
     }
     
@@ -226,20 +250,23 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 
     if(GPIO_Pin == BEMF_1_Pin || GPIO_Pin == BEMF_2_Pin || GPIO_Pin == BEMF_3_Pin){
 
-        /*
-            TODO: Check the Pin's state, to filter out noise.
-            
-            if(getBemfStateFalling() == 0){
-                return;
-            }
-        */
-        
+       #ifdef DEBUGGING
+       HAL_GPIO_TogglePin(SPARE3_GPIO_Port, SPARE3_Pin);
+       #endif
+
+
         if(zcDetEnable){
             zc_counter++;
         }
         
         if(motorState == MOTOR_STATE_AUTO_COMMUTATION){       
-            commutate();     
+        
+            delayMicro(TEST_ZC_MEASUREMENT_DELAY);
+            if(getBemfStateFalling() == 1){
+                return;
+            }         
+        
+            commutate();          
         }
     }
 }
@@ -258,8 +285,13 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
 
 void motorAlign(Phase phaseA, Phase phaseB, Phase phaseC){
 
+    //TODO: Make Align function Smoother, Less Amp
+
+    #ifdef DEBUGGING
+    DEBUGGER << "Motor Align Function Called.\n";
+    #endif
+    
     motorState = MOTOR_STATE_ALIGN;
-    phaseA.set_pwm(ALIGN_PWM_INIT);
     phaseB.low_on();
     phaseC.low_on();
     phaseA.high_on();
@@ -272,19 +304,31 @@ void motorAlign(Phase phaseA, Phase phaseB, Phase phaseC){
         HAL_Delay(ALIGN_STEP_DURATION_MS);
     }
 
+    #ifdef DEBUGGING
     ws2812b_setColor(ws2812b_led, 0, 255, 0, 0);
+    #endif
+
     commutation_step = 0;
-    phaseA.off();
-    phaseB.off();
-    phaseC.off();
+    // phaseA.off();
+    // phaseB.off();
+    // phaseC.off();
+
+    #ifdef DEBUGGING
+    DEBUGGER << "Motor Align Function Done.\n";
+    #endif
 }
 
 
 void motorRamp(Phase phaseA, Phase phaseB, Phase phaseC){
 
+    #ifdef DEBUGGING
+    DEBUGGER << "Motor Ramp Function Called.\n";
+    #endif
+
     motorState = MOTOR_STATE_RAMP;
-    phaseB.set_pwm(phaseA.get_duty_cycle());
-    phaseC.set_pwm(phaseA.get_duty_cycle());
+    phaseA.set_pwm(ALIGN_PWM_TARGET);
+    phaseB.set_pwm(ALIGN_PWM_TARGET);
+    phaseC.set_pwm(ALIGN_PWM_TARGET);
     zcDetEnable = 0;
     uint16_t stepDelayUs = RAMP_STEP_INIT_DURATION_US;
 
@@ -299,7 +343,7 @@ void motorRamp(Phase phaseA, Phase phaseB, Phase phaseC){
 
         if(i == RAMP_ZC_DET_ENABLE_STEP){
 
-            // zcDetEnable = 1;
+            zcDetEnable = 1;
 
         }
         commutate();
@@ -309,20 +353,36 @@ void motorRamp(Phase phaseA, Phase phaseB, Phase phaseC){
         }
         delayMicro(stepDelayUs);
     }
-    phaseA.off();
-    phaseB.off();
-    phaseC.off();
+    
+    // Check for motor Lock.
+    if(motorState != MOTOR_STATE_AUTO_COMMUTATION){
+
+        phaseA.off();
+        phaseB.off();
+        phaseC.off();
+
+    }
+
+    #ifdef DEBUGGING
+    DEBUGGER << "Motor Ramp Function Done.\n";
     ws2812b_setColor(ws2812b_led, 255, 0, 0, 0);
+    #endif
 
 }
+
 
 void maincpp(){
 
     setup();
     // motorAlign(phaseA, phaseB, phaseC);
     // motorRamp(phaseA, phaseB, phaseC);
+    // phaseA.low_on();
+    // phaseB.low_on();
+    // phaseC.low_on();
+    
 
     while(1){
-       
+
+
     }
 }

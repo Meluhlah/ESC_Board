@@ -22,6 +22,4 @@ extern ADC_HandleTypeDef hadc1;
 
 }
 
-Debug DEBUGGER;
-
 #endif // _MAINCPP_H_
