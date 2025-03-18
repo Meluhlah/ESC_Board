@@ -29,10 +29,29 @@ Debug DEBUGGER(&huart1);
 
 // ********************************************************** //
 
+void phasesOff(){
+
+    phaseA.off();
+    phaseB.off();
+    phaseC.off();
+
+}
+
+
+void setPhasesPwm(uint32_t dutyCycle){
+
+    phaseA.set_pwm(dutyCycle);
+    phaseB.set_pwm(dutyCycle);
+    phaseC.set_pwm(dutyCycle);
+
+}
+
+
 void delayMicro(uint16_t delay){
 	__HAL_TIM_SET_COUNTER(&DELAY_TIMER, 0);
 	while(__HAL_TIM_GET_COUNTER(&DELAY_TIMER) < delay);
 }
+
 
 void setup()
 {
@@ -47,12 +66,8 @@ void setup()
 
     EXTI->IMR1 &= ~(BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
     imrDefaultFlags = EXTI->IMR1;
-    phaseA.set_pwm(0);
-    phaseA.off();
-    phaseB.set_pwm(0);
-    phaseB.off();
-    phaseC.set_pwm(0);
-    phaseC.off();
+    phasesOff();
+    setPhasesPwm(0);
     commutation_step = 0;
     error = NO_ERROR;
     motorState = MOTOR_STATE_IDLE;
@@ -220,6 +235,7 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 
 }
 
+
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin){
 
     if(GPIO_Pin == BEMF_1_Pin || GPIO_Pin == BEMF_2_Pin || GPIO_Pin == BEMF_3_Pin){
@@ -283,7 +299,7 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
 }
 
 
-void motorAlign(Phase phaseA, Phase phaseB, Phase phaseC){
+void motorAlign(){
 
     //TODO: Make Align function Smoother, Less Amp
 
@@ -319,16 +335,14 @@ void motorAlign(Phase phaseA, Phase phaseB, Phase phaseC){
 }
 
 
-void motorRamp(Phase phaseA, Phase phaseB, Phase phaseC){
+void motorRamp(){
 
     #ifdef DEBUGGING
     DEBUGGER << "Motor Ramp Function Called.\n";
     #endif
 
     motorState = MOTOR_STATE_RAMP;
-    phaseA.set_pwm(ALIGN_PWM_TARGET);
-    phaseB.set_pwm(ALIGN_PWM_TARGET);
-    phaseC.set_pwm(ALIGN_PWM_TARGET);
+    setPhasesPwm(ALIGN_PWM_TARGET);
     zcDetEnable = 0;
     uint16_t stepDelayUs = RAMP_STEP_INIT_DURATION_US;
 
@@ -356,10 +370,8 @@ void motorRamp(Phase phaseA, Phase phaseB, Phase phaseC){
     
     // Check for motor Lock.
     if(motorState != MOTOR_STATE_AUTO_COMMUTATION){
-
-        phaseA.off();
-        phaseB.off();
-        phaseC.off();
+        error = ERROR_MOTOR_LOCKED;
+        phasesOff();
 
     }
 
@@ -374,8 +386,8 @@ void motorRamp(Phase phaseA, Phase phaseB, Phase phaseC){
 void maincpp(){
 
     setup();
-    // motorAlign(phaseA, phaseB, phaseC);
-    // motorRamp(phaseA, phaseB, phaseC);
+    // motorAlign();
+    // motorRamp();
     // phaseA.low_on();
     // phaseB.low_on();
     // phaseC.low_on();

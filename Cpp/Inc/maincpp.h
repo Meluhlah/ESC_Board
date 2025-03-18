@@ -9,8 +9,13 @@
 
 void setup();
 void commutate();
-uint8_t getBemfStateFalling();
+void delayMicro(uint16_t delay);
 uint8_t getBemfStateRising();
+uint8_t getBemfStateFalling();
+void motorAlign();
+void motorRamp();
+void phasesOff();
+void setPhasesPwm(uint32_t dutyCycle);
 
 extern "C"{
 
