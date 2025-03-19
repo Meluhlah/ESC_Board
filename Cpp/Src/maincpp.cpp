@@ -15,8 +15,8 @@ volatile uint32_t imrDefaultFlags = 0;
 uint8_t zcDetEnable = 0;
 
 // Status Params ******************************************** //
-volatile MOTOR_STATE_e motorState;
-volatile ERROR_e error;
+volatile MotorState_e motorState;
+volatile Error_e error;
 
 // Delay Params ********************************************* //
 volatile uint8_t tim14DelayFlag = 0;
@@ -25,9 +25,17 @@ volatile uint8_t tim14DelayFlag = 0;
 led_t ws2812b_led[NUM_OF_LEDS];
 
 // Debugger ************************************************* //
+#ifdef DEBUGGING
 Debug DEBUGGER(&huart1);
+#endif
 
-// ********************************************************** //
+// Communication ******************************************** //
+
+UartPacketTx_t uartPacketTx = {0x01, 0x00, 0x00, DIRECTION_ABC, MOTOR_STATE_IDLE, NO_ERROR, 0x00, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00},0x00};
+UartPacketRx_t uartPacketRx = {0x01, CMD_IDLE, 0x00, {0x00, 0x00, 0x00}, 0x00};
+volatile uint8_t uartTxFlag = 0;
+volatile uint8_t uartRxFlag = 0;
+
 
 void phasesOff(){
 
@@ -72,6 +80,7 @@ void setup()
     error = NO_ERROR;
     motorState = MOTOR_STATE_IDLE;
     HAL_TIM_Base_Start(&htim14);
+    HAL_TIM_Base_Start_IT(&htim3);
 
 }
 
@@ -229,8 +238,9 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 
     if(huart->Instance == USART1){
 
+        #ifdef DEBUGGER
         DEBUGGER.setTxFlag();
-
+        #endif
     }
 
 }
@@ -293,9 +303,40 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
     // WS2812B LED
     if(htim == &TIM_HANDLE){
 		HAL_TIM_PWM_Stop_DMA(&TIM_HANDLE, TIM_CHANNEL);
-	}
+	}   
+}
 
-    
+
+void calc_checkSum(){
+    uint32_t checksum = 0;
+    checksum ^= uartPacketTx.slaveId;
+    checksum ^= uartPacketTx.temp;
+    checksum ^= uartPacketTx.vin;
+    checksum ^= uartPacketTx.direction;
+    checksum ^= uartPacketTx.state;
+    checksum ^= uartPacketTx.error;
+    checksum ^= uartPacketTx.flashParameterVal;
+    checksum ^= uartPacketTx.led_rgb.red;
+    checksum ^= uartPacketTx.led_rgb.green;
+    checksum ^= uartPacketTx.led_rgb.blue;
+    checksum ^= uartPacketTx.hallSensors[0];
+    checksum ^= uartPacketTx.hallSensors[1];
+    checksum ^= uartPacketTx.hallSensors[2];
+
+    uartPacketTx.checksum = checksum;
+
+}
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+
+    if(htim->Instance == TIM3){
+        
+        calc_checkSum();
+        HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&uartPacketTx, sizeof(UartPacketTx_t));
+
+    }
+
 }
 
 

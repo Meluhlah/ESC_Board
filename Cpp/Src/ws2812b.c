@@ -22,6 +22,22 @@ void ws2812b_clearAll(led_t* led){
 		ws2812b_sendData(led);
 }
 
+void ws2812b_setRed			(led_t* led, uint8_t redValue){
+	led->red = redValue;
+	ws2812b_sendData(led);
+}
+
+void ws2812b_setGreen		(led_t* led, uint8_t greenValue){
+	led->green = greenValue;
+	ws2812b_sendData(led);
+}
+
+
+void ws2812b_setBlue		(led_t* led, uint8_t blueValue){
+	led->blue = blueValue;
+	ws2812b_sendData(led);
+}
+
 
 void ws2812b_setColor(led_t* led, uint8_t red, uint8_t green, uint8_t blue, uint8_t id){
 	led[id].red = red;

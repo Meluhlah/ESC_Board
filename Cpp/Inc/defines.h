@@ -1,6 +1,8 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
+#include "ws2812b.h"
+
 // Motor Specs Defines *********************** //
 #define MOTOR_PARAM_POLE_PAIRS          (uint8_t)7
 #define MOTOR_PARAM_KV                  (uint16_t)1000  //D2830
@@ -34,7 +36,7 @@
 
 
 /* DEBUGGING **********************************/
-#define DEBUGGING
+// #define DEBUGGING
 
 
 typedef enum {
@@ -44,7 +46,7 @@ typedef enum {
     MOTOR_STATE_RAMP,
     MOTOR_STATE_AUTO_COMMUTATION, 
 
-} MOTOR_STATE_e;
+} MotorState_e;
 
 typedef enum{
 
@@ -55,7 +57,51 @@ typedef enum{
     ERROR_OVER_TEMPERATURE,
     ERROR_LOW_BATTERY
 
-} ERROR_e;
+} Error_e;
+
+typedef enum{
+    DIRECTION_ABC,
+    DIRECTION_CBA
+} Direction_e;
+
+typedef enum{
+
+    CMD_IDLE,
+    CMD_MOTOR_START,
+    CMD_MOTOR_STOP,
+    CMD_MOTOR_ALIGN,
+    CMD_MOTOR_SET_SPEED,
+    CMD_FLASH_WRITE,
+    CMD_FLASH_READ,
+    CMD_LED_SET_COLOR,
+    CMD_LED_SET_COLORS
+
+} UartCommands_e;
+
+typedef struct __attribute__((packed)){
+
+    uint8_t         slaveId;
+    uint8_t         temp;   //Temperature
+    uint16_t        vin;
+    Direction_e     direction;
+    MotorState_e    state;
+    Error_e         error;
+    uint32_t        flashParameterVal;
+    led_t           led_rgb;
+    uint8_t         hallSensors[3]; //Optional
+    uint32_t        checksum;
+
+}   UartPacketTx_t;
+
+typedef struct __attribute__((packed)){
+
+    uint8_t         slaveId;
+    UartCommands_e  command;
+    uint8_t         flash_mem_adrs;
+    uint16_t        data[3];
+    uint32_t        checksum;
+
+}   UartPacketRx_t;
 
 
 #endif // _DEFINES_H
