@@ -17,8 +17,8 @@ void motorRamp();
 void phasesOff();
 void setPhasesPwm(uint32_t dutyCycle);
 void execGuiCommands();
-void makeTxPacket();
-void calc_checkSum();
+void makeTxPacket(UartPacketTx_t* uartPacket_tx);
+void calc_checkSum(UartPacketTx_t* uartPacket_tx);
 
 extern "C"{
 

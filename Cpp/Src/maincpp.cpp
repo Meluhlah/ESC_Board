@@ -192,7 +192,6 @@ void commutate()
 
     }
 
-    uartPacketTx.dutyCycle = (uint8_t)phaseA.get_duty_cycle();
     
 }
 
@@ -268,8 +267,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
     if(htim->Instance == TIM3){
         
-        makeTxPacket();
-        calc_checkSum();
+        makeTxPacket(&uartPacketTx);
         HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&uartPacketTx, sizeof(UartPacketTx_t));
 
     }
@@ -338,25 +336,46 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 }
 
 
-void calc_checkSum(){
+void calc_checkSum(UartPacketTx_t* uartPacket_tx){
     uint32_t checksum = 0;
-    checksum ^= uartPacketTx.slaveId;
-    checksum ^= uartPacketTx.dutyCycle;
-    checksum ^= uartPacketTx.temp;
-    checksum ^= uartPacketTx.vin;
-    checksum ^= uartPacketTx.direction;
-    checksum ^= uartPacketTx.state;
-    checksum ^= uartPacketTx.error;
-    checksum ^= uartPacketTx.flashParameterVal;
-    checksum ^= uartPacketTx.led_rgb.red;
-    checksum ^= uartPacketTx.led_rgb.green;
-    checksum ^= uartPacketTx.led_rgb.blue;
-    checksum ^= uartPacketTx.hallSensors[0];
-    checksum ^= uartPacketTx.hallSensors[1];
-    checksum ^= uartPacketTx.hallSensors[2];
+    checksum ^= uartPacket_tx->slaveId;
+    checksum ^= uartPacket_tx->dutyCycle;
+    checksum ^= uartPacket_tx->temp;
+    checksum ^= uartPacket_tx->vin;
+    checksum ^= uartPacket_tx->direction;
+    checksum ^= uartPacket_tx->state;
+    checksum ^= uartPacket_tx->error;
+    checksum ^= uartPacket_tx->flashParameterVal;
+    checksum ^= uartPacket_tx->led_rgb.red;
+    checksum ^= uartPacket_tx->led_rgb.green;
+    checksum ^= uartPacket_tx->led_rgb.blue;
+    checksum ^= uartPacket_tx->hallSensors[0];
+    checksum ^= uartPacket_tx->hallSensors[1];
+    checksum ^= uartPacket_tx->hallSensors[2];
 
-    uartPacketTx.checksum = checksum;
+    uartPacket_tx->checksum = checksum;
 
+}
+
+
+void makeTxPacket(UartPacketTx_t* uartPacket_tx){
+
+    uartPacket_tx->direction = DIRECTION_ABC;   // TODO: Add support in code
+    uartPacket_tx->dutyCycle = (uint8_t)phaseA.get_duty_cycle();
+    uartPacket_tx->error = error;
+    uartPacket_tx->slaveId = 0x01;              // TODO: Add support in code
+    uartPacket_tx->led_rgb.red = ws2812b_led->red;
+    uartPacket_tx->led_rgb.green = ws2812b_led->green;
+    uartPacket_tx->led_rgb.blue = ws2812b_led->blue;
+    uartPacket_tx->state = motorState;
+    uartPacket_tx->temp = 0x00;                 // TODO: Add support in code
+    uartPacket_tx->vin = 0x00;                  // TODO: Add support in code
+    uartPacket_tx->hallSensors[0] = 0x00;       // TODO: Add support in code
+    uartPacket_tx->hallSensors[1] = 0x00;       // TODO: Add support in code
+    uartPacket_tx->hallSensors[2] = 0x00;       // TODO: Add support in code
+    uartPacket_tx->flashParameterVal = 0x0000;  // TODO: Add support in code
+    calc_checkSum(uartPacket_tx);
+    
 }
 
 
@@ -439,12 +458,6 @@ void motorRamp(){
     #ifdef DEBUGGING
     DEBUGGER << "Motor Ramp Function Done.\n";
     #endif
-
-}
-
-
-void makeTxPacket(){
-
 
 }
 
