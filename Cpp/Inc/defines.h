@@ -73,14 +73,17 @@ typedef enum{
     CMD_MOTOR_SET_SPEED,
     CMD_FLASH_WRITE,
     CMD_FLASH_READ,
-    CMD_LED_SET_COLOR,
-    CMD_LED_SET_COLORS
+    CMD_LED_SET_RED,
+    CMD_LED_SET_GREEN,
+    CMD_LED_SET_BLUE,
+    CMD_LED_SET_RGB
 
 } UartCommands_e;
 
 typedef struct __attribute__((packed)){
 
     uint8_t         slaveId;
+    uint8_t         dutyCycle;
     uint8_t         temp;   //Temperature
     uint16_t        vin;
     Direction_e     direction;

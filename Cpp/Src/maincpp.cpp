@@ -24,24 +24,28 @@ volatile uint8_t tim14DelayFlag = 0;
 // WS2812B LED Params *************************************** //
 led_t ws2812b_led[NUM_OF_LEDS];
 
+// Communication ******************************************** //
+
+UartPacketTx_t uartPacketTx = {0x01, 0x00, 0x00, 0x00, DIRECTION_ABC, MOTOR_STATE_IDLE, NO_ERROR, 0x00, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00},0x00};
+UartPacketRx_t uartPacketRx = {0x01, CMD_IDLE, 0x00, {0x00, 0x00, 0x00}, 0x00};
+volatile uint8_t uartTxFlag = 0;
+volatile uint8_t uartRxFlag = 0;
+uint8_t uartRxBuffer[sizeof(UartPacketRx_t)];
+ 
 // Debugger ************************************************* //
 #ifdef DEBUGGING
 Debug DEBUGGER(&huart1);
 #endif
 
-// Communication ******************************************** //
-
-UartPacketTx_t uartPacketTx = {0x01, 0x00, 0x00, DIRECTION_ABC, MOTOR_STATE_IDLE, NO_ERROR, 0x00, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00},0x00};
-UartPacketRx_t uartPacketRx = {0x01, CMD_IDLE, 0x00, {0x00, 0x00, 0x00}, 0x00};
-volatile uint8_t uartTxFlag = 0;
-volatile uint8_t uartRxFlag = 0;
-
+// ********************************************************** //
 
 void phasesOff(){
 
+    zcDetEnable = 0;
     phaseA.off();
     phaseB.off();
     phaseC.off();
+    motorState = MOTOR_STATE_IDLE;
 
 }
 
@@ -62,23 +66,25 @@ void delayMicro(uint16_t delay){
 
 
 void setup()
-{
-
-    ws2812b_init(ws2812b_led);
-    
+{   
     #ifdef DEBUGGING
     HAL_Delay(2);
     ws2812b_setColor(ws2812b_led, 0, 0, 255, 0);
     DEBUGGER << "Setup Function Called.\n";
     #endif
-
+    
+    ws2812b_init(ws2812b_led);
+    
     EXTI->IMR1 &= ~(BEMF_1_Pin | BEMF_2_Pin | BEMF_3_Pin);
     imrDefaultFlags = EXTI->IMR1;
+    
     phasesOff();
     setPhasesPwm(0);
     commutation_step = 0;
     error = NO_ERROR;
     motorState = MOTOR_STATE_IDLE;
+
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart1, uartRxBuffer, sizeof(UartPacketRx_t));
     HAL_TIM_Base_Start(&htim14);
     HAL_TIM_Base_Start_IT(&htim3);
 
@@ -183,13 +189,10 @@ void commutate()
         default:
         break;
 
-        /*
-        TODO: Add delay for ringing
-        */
-    
 
     }
 
+    uartPacketTx.dutyCycle = (uint8_t)phaseA.get_duty_cycle();
     
 }
 
@@ -234,6 +237,7 @@ uint8_t getBemfStateFalling(){
 
 }
 
+// TODO: Maybe Remove
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
 
     if(huart->Instance == USART1){
@@ -243,6 +247,42 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart){
         #endif
     }
 
+}
+
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+
+    if(huart->Instance == USART1){
+        if(sizeof(UartPacketRx_t) == Size){
+            uartRxFlag = 1;
+            memcpy(&uartPacketRx, uartRxBuffer, sizeof(UartPacketRx_t));
+            HAL_UARTEx_ReceiveToIdle_DMA(huart, uartRxBuffer, sizeof(UartPacketRx_t));
+    }
+
+    }
+
+}
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+
+    if(htim->Instance == TIM3){
+        
+        makeTxPacket();
+        calc_checkSum();
+        HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&uartPacketTx, sizeof(UartPacketTx_t));
+
+    }
+
+}
+
+
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
+
+    // WS2812B LED
+    if(htim == &TIM_HANDLE){
+		HAL_TIM_PWM_Stop_DMA(&TIM_HANDLE, TIM_CHANNEL);
+	}   
 }
 
 
@@ -298,18 +338,10 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin){
 }
 
 
-void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
-
-    // WS2812B LED
-    if(htim == &TIM_HANDLE){
-		HAL_TIM_PWM_Stop_DMA(&TIM_HANDLE, TIM_CHANNEL);
-	}   
-}
-
-
 void calc_checkSum(){
     uint32_t checksum = 0;
     checksum ^= uartPacketTx.slaveId;
+    checksum ^= uartPacketTx.dutyCycle;
     checksum ^= uartPacketTx.temp;
     checksum ^= uartPacketTx.vin;
     checksum ^= uartPacketTx.direction;
@@ -328,18 +360,6 @@ void calc_checkSum(){
 }
 
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
-
-    if(htim->Instance == TIM3){
-        
-        calc_checkSum();
-        HAL_UART_Transmit_DMA(&huart1, (uint8_t*)&uartPacketTx, sizeof(UartPacketTx_t));
-
-    }
-
-}
-
-
 void motorAlign(){
 
     //TODO: Make Align function Smoother, Less Amp
@@ -348,7 +368,9 @@ void motorAlign(){
     DEBUGGER << "Motor Align Function Called.\n";
     #endif
     
+    ws2812b_setGreen(ws2812b_led, 255);
     motorState = MOTOR_STATE_ALIGN;
+    setPhasesPwm(ALIGN_PWM_INIT);
     phaseB.low_on();
     phaseC.low_on();
     phaseA.high_on();
@@ -366,9 +388,6 @@ void motorAlign(){
     #endif
 
     commutation_step = 0;
-    // phaseA.off();
-    // phaseB.off();
-    // phaseC.off();
 
     #ifdef DEBUGGING
     DEBUGGER << "Motor Align Function Done.\n";
@@ -381,10 +400,11 @@ void motorRamp(){
     #ifdef DEBUGGING
     DEBUGGER << "Motor Ramp Function Called.\n";
     #endif
-
+    ws2812b_setBlue(ws2812b_led, 255);
+    zcDetEnable = 0;
+    zc_counter = 0;
     motorState = MOTOR_STATE_RAMP;
     setPhasesPwm(ALIGN_PWM_TARGET);
-    zcDetEnable = 0;
     uint16_t stepDelayUs = RAMP_STEP_INIT_DURATION_US;
 
     for(int i = 0; i < RAMP_STEPS_NUM; i++){
@@ -418,8 +438,53 @@ void motorRamp(){
 
     #ifdef DEBUGGING
     DEBUGGER << "Motor Ramp Function Done.\n";
-    ws2812b_setColor(ws2812b_led, 255, 0, 0, 0);
     #endif
+
+}
+
+
+void makeTxPacket(){
+
+
+}
+
+
+void execGuiCommands(){
+
+    switch(uartPacketRx.command){
+        case CMD_MOTOR_STOP:
+            phasesOff();
+            break;
+
+        case CMD_MOTOR_START:
+            motorAlign();
+            motorRamp();
+            break;
+
+        case CMD_MOTOR_ALIGN:
+            motorAlign();
+            phasesOff();
+            break;
+
+        case CMD_LED_SET_RED:
+            ws2812b_setRed(ws2812b_led, uartPacketRx.data[0]);
+            break;
+
+        case CMD_LED_SET_GREEN:
+            ws2812b_setGreen(ws2812b_led, uartPacketRx.data[0]);
+            break;
+
+        case CMD_LED_SET_BLUE:
+            ws2812b_setBlue(ws2812b_led, uartPacketRx.data[0]);
+            break;
+
+        case CMD_LED_SET_RGB:
+            ws2812b_setColor(ws2812b_led, uartPacketRx.data[0], uartPacketRx.data[1], uartPacketRx.data[2], 0);
+            break;
+
+        default:
+            break;
+    }
 
 }
 
@@ -427,15 +492,13 @@ void motorRamp(){
 void maincpp(){
 
     setup();
-    // motorAlign();
-    // motorRamp();
-    // phaseA.low_on();
-    // phaseB.low_on();
-    // phaseC.low_on();
-    
 
     while(1){
 
+        if(1 == uartRxFlag){
+            uartRxFlag = 0;
+            execGuiCommands();
+        }
 
     }
 }

@@ -16,6 +16,9 @@ void motorAlign();
 void motorRamp();
 void phasesOff();
 void setPhasesPwm(uint32_t dutyCycle);
+void execGuiCommands();
+void makeTxPacket();
+void calc_checkSum();
 
 extern "C"{
 

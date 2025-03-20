@@ -115,7 +115,9 @@ void ws2812b_clearAll		(led_t* led);
 void ws2812b_setRed			(led_t* led, uint8_t redValue);
 void ws2812b_setGreen		(led_t* led, uint8_t greenValue);
 void ws2812b_setBlue		(led_t* led, uint8_t blueValue);
+/* TODO: Add ifdef for number of leds to remove the index*/
 void ws2812b_setColor		(led_t* led, uint8_t red, uint8_t green, uint8_t blue, uint8_t index);	// Setting each led_t color.
+/* ***************************************************** */
 void ws2812b_sendData		(led_t* led);
 void ws2812b_blink			(led_t* led, uint8_t r, uint8_t g, uint8_t b);
 void ws2812b_setStripColor	(led_t* led, uint8_t red, uint8_t green, uint8_t blue);
