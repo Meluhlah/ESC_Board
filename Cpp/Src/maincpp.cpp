@@ -41,10 +41,10 @@ Debug DEBUGGER(&huart1);
 
 void phasesOff(){
 
-    zcDetEnable = 0;
     phaseA.off();
     phaseB.off();
     phaseC.off();
+    zcDetEnable = 0;
     motorState = MOTOR_STATE_IDLE;
 
 }
@@ -493,6 +493,14 @@ void execGuiCommands(){
 
         case CMD_LED_SET_RGB:
             ws2812b_setColor(ws2812b_led, uartPacketRx.data[0], uartPacketRx.data[1], uartPacketRx.data[2], 0);
+            break;
+
+        case CMD_MOTOR_SET_SPEED:
+            if(uartPacketRx.data[0] <= MOTOR_MAX_PWM){
+
+               setPhasesPwm((uint32_t)uartPacketRx.data[0]);
+
+            }
             break;
 
         default:

@@ -7,6 +7,10 @@
 #define MOTOR_PARAM_POLE_PAIRS          (uint8_t)7
 #define MOTOR_PARAM_KV                  (uint16_t)1000  //D2830
 
+// Motor General Defines ********************* //
+#define MOTOR_MAX_PWM                   (uint16_t)100
+
+
 // Motor Align Defines *********************** //
 #define ALIGN_PWM_INIT                  (uint8_t)5      
 #define ALIGN_PWM_TARGET                (uint8_t)20
