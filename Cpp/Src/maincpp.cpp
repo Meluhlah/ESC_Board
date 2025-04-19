@@ -14,6 +14,10 @@ volatile uint8_t zc_counter = 0;
 volatile uint32_t imrDefaultFlags = 0;
 uint8_t zcDetEnable = 0;
 
+// ADC ****************************************************** //
+
+volatile uint16_t adcBuffer[ADC_CHANNELS];
+
 // Status Params ******************************************** //
 volatile MotorState_e motorState;
 volatile Error_e error;
@@ -25,13 +29,17 @@ volatile uint8_t tim14DelayFlag = 0;
 led_t ws2812b_led[NUM_OF_LEDS];
 
 // Communication ******************************************** //
-
-UartPacketTx_t uartPacketTx = {0x01, 0x00, 0x00, 0x00, DIRECTION_ABC, MOTOR_STATE_IDLE, NO_ERROR, 0x00, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00},0x00};
+UartPacketTx_t uartPacketTx = {0x01, 0x00, 0x0000, 0x00, 0x00, DIRECTION_ABC, MOTOR_STATE_IDLE, NO_ERROR, 0x00, {0x00, 0x00, 0x00}, {0x00, 0x00, 0x00},0x00};
 UartPacketRx_t uartPacketRx = {0x01, CMD_IDLE, 0x00, {0x00, 0x00, 0x00}, 0x00};
 volatile uint8_t uartTxFlag = 0;
 volatile uint8_t uartRxFlag = 0;
 uint8_t uartRxBuffer[sizeof(UartPacketRx_t)];
- 
+
+// PID ****************************************************** //
+PidController_t pid;
+uint32_t rpmSpeed = 0;
+
+
 // Debugger ************************************************* //
 #ifdef DEBUGGING
 Debug DEBUGGER(&huart1);
@@ -85,7 +93,9 @@ void setup()
     motorState = MOTOR_STATE_IDLE;
 
     HAL_UARTEx_ReceiveToIdle_DMA(&huart1, uartRxBuffer, sizeof(UartPacketRx_t));
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcBuffer, sizeof(adcBuffer));
     HAL_TIM_Base_Start(&htim14);
+    HAL_TIM_Base_Start(&htim17);
     HAL_TIM_Base_Start_IT(&htim3);
 
 }
@@ -108,6 +118,8 @@ void commutate()
     commutation_step++;
     commutation_step %= 6;
 
+    uint32_t timerValue = 0;
+
     delayMicro(2);
 
 
@@ -127,10 +139,21 @@ void commutate()
     switch(commutation_step)
     {
         case 0:
+
+            timerValue = __HAL_TIM_GET_COUNTER(&RPM_TIMER);
+            __HAL_TIM_SET_COUNTER(&RPM_TIMER, 0);
+            if(timerValue != 0){
+                rpmSpeed = ((60 * 1000000) / (timerValue * MOTOR_PARAM_POLE_PAIRS));
+            }
+            else{
+                rpmSpeed = 0;
+            }
+
             if(1 == zcDetEnable){
                 EXTI->IMR1  = (imrDefaultFlags | BEMF_2_Pin);
                 EXTI->RTSR1 |= BEMF_2_Pin;  // Enabling Rising Interrupt on B
             }
+
             phaseB.off();    
             phaseA.high_on();
             phaseC.low_on();
@@ -181,6 +204,7 @@ void commutate()
                 EXTI->IMR1  = (imrDefaultFlags | BEMF_3_Pin);
                 EXTI->FTSR1 |= BEMF_3_Pin; // Enabling Falling Interrupt on C
             }
+
             phaseC.off();    
             phaseA.high_on();
             phaseB.low_on();
@@ -284,6 +308,13 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
 }
 
 
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
+
+    HAL_ADC_Start_DMA(&hadc1, (uint32_t*)adcBuffer, sizeof(adcBuffer));
+
+}
+
+
 void HAL_GPIO_EXTI_Rising_Callback(uint16_t GPIO_Pin){
 
     if(GPIO_Pin == BEMF_1_Pin || GPIO_Pin == BEMF_2_Pin || GPIO_Pin == BEMF_3_Pin){
@@ -340,6 +371,7 @@ void calc_checkSum(UartPacketTx_t* uartPacket_tx){
     uint32_t checksum = 0;
     checksum ^= uartPacket_tx->slaveId;
     checksum ^= uartPacket_tx->dutyCycle;
+    checksum ^= uartPacket_tx->rpmValue;
     checksum ^= uartPacket_tx->temp;
     checksum ^= uartPacket_tx->vin;
     checksum ^= uartPacket_tx->direction;
@@ -360,20 +392,21 @@ void calc_checkSum(UartPacketTx_t* uartPacket_tx){
 
 void makeTxPacket(UartPacketTx_t* uartPacket_tx){
 
-    uartPacket_tx->direction = DIRECTION_ABC;   // TODO: Add support in code
-    uartPacket_tx->dutyCycle = (uint8_t)phaseA.get_duty_cycle();
-    uartPacket_tx->error = error;
-    uartPacket_tx->slaveId = 0x01;              // TODO: Add support in code
-    uartPacket_tx->led_rgb.red = ws2812b_led->red;
-    uartPacket_tx->led_rgb.green = ws2812b_led->green;
-    uartPacket_tx->led_rgb.blue = ws2812b_led->blue;
-    uartPacket_tx->state = motorState;
-    uartPacket_tx->temp = 0x00;                 // TODO: Add support in code
-    uartPacket_tx->vin = 0x00;                  // TODO: Add support in code
-    uartPacket_tx->hallSensors[0] = 0x00;       // TODO: Add support in code
-    uartPacket_tx->hallSensors[1] = 0x00;       // TODO: Add support in code
-    uartPacket_tx->hallSensors[2] = 0x00;       // TODO: Add support in code
-    uartPacket_tx->flashParameterVal = 0x0000;  // TODO: Add support in code
+    uartPacket_tx->direction            = DIRECTION_ABC;                    // TODO: Add support in code
+    uartPacket_tx->dutyCycle            = (uint8_t)phaseA.get_duty_cycle();
+    uartPacket_tx->rpmValue             = rpmSpeed;
+    uartPacket_tx->error                = error;
+    uartPacket_tx->slaveId              = 0x01;                             // TODO: Add support in code
+    uartPacket_tx->led_rgb.red          = ws2812b_led->red;
+    uartPacket_tx->led_rgb.green        = ws2812b_led->green;
+    uartPacket_tx->led_rgb.blue         = ws2812b_led->blue;
+    uartPacket_tx->state                = motorState;
+    uartPacket_tx->temp                 = 0x00;                             // TODO: Add support in code
+    uartPacket_tx->vin                  = 0x00;                             // TODO: Add support in code
+    uartPacket_tx->hallSensors[0]       = 0x00;                             // TODO: Add support in code
+    uartPacket_tx->hallSensors[1]       = 0x00;                             // TODO: Add support in code
+    uartPacket_tx->hallSensors[2]       = 0x00;                             // TODO: Add support in code
+    uartPacket_tx->flashParameterVal    = 0x0000;                           // TODO: Add support in code
     calc_checkSum(uartPacket_tx);
     
 }
@@ -385,26 +418,26 @@ void motorAlign(){
 
     #ifdef DEBUGGING
     DEBUGGER << "Motor Align Function Called.\n";
+    ws2812b_setGreen(ws2812b_led, 255);
     #endif
     
-    ws2812b_setGreen(ws2812b_led, 255);
     motorState = MOTOR_STATE_ALIGN;
     setPhasesPwm(ALIGN_PWM_INIT);
     phaseB.low_on();
     phaseC.low_on();
     phaseA.high_on();
-    
+
+    float currentPwm = ALIGN_PWM_INIT;
+
     for(int i = 0; i < ALIGN_STEPS_NUM; i++){
-        uint32_t newDutyCycle = phaseA.get_duty_cycle() + ALIGN_PWM_INCREMENT_PER_STEP;
-        if(newDutyCycle <= ALIGN_PWM_TARGET){
-            phaseA.set_pwm(newDutyCycle);
+        currentPwm += ALIGN_PWM_INCREMENT_PER_STEP;
+
+        if(currentPwm <= ALIGN_PWM_TARGET){
+            phaseA.set_pwm((uint32_t)currentPwm);
         }        
+
         HAL_Delay(ALIGN_STEP_DURATION_MS);
     }
-
-    #ifdef DEBUGGING
-    ws2812b_setColor(ws2812b_led, 0, 255, 0, 0);
-    #endif
 
     commutation_step = 0;
 
@@ -418,8 +451,9 @@ void motorRamp(){
 
     #ifdef DEBUGGING
     DEBUGGER << "Motor Ramp Function Called.\n";
-    #endif
     ws2812b_setBlue(ws2812b_led, 255);
+    #endif
+    
     zcDetEnable = 0;
     zc_counter = 0;
     motorState = MOTOR_STATE_RAMP;

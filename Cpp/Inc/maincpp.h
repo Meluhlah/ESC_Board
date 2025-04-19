@@ -6,6 +6,7 @@
 #include "Debug.h"
 #include "defines.h"
 #include "ws2812b.h"
+#include "pid.h"
 
 void setup();
 void commutate();
@@ -24,6 +25,7 @@ extern "C"{
 
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim16;
+extern TIM_HandleTypeDef htim14;
 extern TIM_HandleTypeDef htim17;
 extern UART_HandleTypeDef huart1;
 extern ADC_HandleTypeDef hadc1;

@@ -52,6 +52,7 @@ target_sources(${CMAKE_PROJECT_NAME} PRIVATE
     Cpp/Phase/Phase.cpp
     Cpp/Debug/Debug.cpp
     Cpp/Src/ws2812b.c
+    Cpp/Src/pid.c
 )
 
 # Add include paths

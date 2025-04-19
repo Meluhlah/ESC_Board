@@ -14,10 +14,10 @@
 // Motor Align Defines *********************** //
 #define ALIGN_PWM_INIT                  (uint8_t)5      
 #define ALIGN_PWM_TARGET                (uint8_t)20
-#define ALIGN_STEPS_NUM                 (uint8_t)40
-#define ALIGN_STEP_DURATION_MS          (uint8_t)30
-#define ALIGN_PWM_INCREMENT_PER_STEP    (uint8_t)1
-// #define ALIGN_PWM_INCREMENT_PER_STEP    (uint8_t)((uint16_t)((ALIGN_PWM_TARGET - ALIGN_PWM_INIT) / (ALIGN_STEPS_NUM)))
+#define ALIGN_STEPS_NUM                 (uint8_t)20
+#define ALIGN_STEP_DURATION_MS          (uint8_t)5
+// #define ALIGN_PWM_INCREMENT_PER_STEP    (uint8_t)1
+#define ALIGN_PWM_INCREMENT_PER_STEP    (float)((float)(ALIGN_PWM_TARGET - ALIGN_PWM_INIT) / ALIGN_STEPS_NUM)
 
 // Motor Ramp Defines *********************** //
 #define RAMP_PWM_INIT                   (uint8_t)(ALIGN_PWM_TARGET)
@@ -34,14 +34,16 @@
 #define TEST_ZC_MEASUREMENT_DELAY       (uint8_t)(40)   //TODO: Add Motorspeed to calculation, delay decrease with speed increasing.
 
 
-
-// Delay Timer        *********************** //
+//Timers ************************************* //
 #define DELAY_TIMER                     htim14
+#define RPM_TIMER                       htim17
 
-
-/* DEBUGGING **********************************/
+// DEBUGGING **********************************//
 // #define DEBUGGING
 
+// ADC **************************************** //
+
+#define ADC_CHANNELS                    (uint8_t)6
 
 typedef enum {
 
@@ -88,6 +90,7 @@ typedef struct __attribute__((packed)){
 
     uint8_t         slaveId;
     uint8_t         dutyCycle;
+    uint16_t        rpmValue;
     uint8_t         temp;   //Temperature
     uint16_t        vin;
     Direction_e     direction;
